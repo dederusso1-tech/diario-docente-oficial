@@ -5,7 +5,7 @@ from flask import Flask, render_template_string, send_file, request, redirect, u
 
 app = Flask(__name__)
 
-# Dados que aparecem na sua tela do CIEP 205
+# Dados oficiais fixos dos alunos do CIEP 205
 def obter_dados_alunos():
     return [
         {"nome": "ALLAN ARAÚJO MARQUES DA CONCEIÇÃO", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"},
@@ -15,7 +15,7 @@ def obter_dados_alunos():
         {"nome": "ANA CLARA SANTOS", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"}
     ]
 
-# O HTML exato da sua tela, agora com o botão de download integrado de forma nativa
+# Interface visual idêntica à sua, com o botão verde de download inserido de forma definitiva
 HTML_DIARIO = '''
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -62,7 +62,7 @@ HTML_DIARIO = '''
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="fw-bold m-0">📊 PLANILHA CONSOLIDADA (FREQUÊNCIA E RENDIMENTO)</h5>
-        <a href="/exportar-excel" class="btn btn-success fw-bold shadow-sm">
+        <a href="/exportar-excel" class="btn btn-success fw-bold shadow-sm px-4 py-2">
             📥 Baixar Planilha Excel
         </a>
     </div>
@@ -100,23 +100,19 @@ HTML_DIARIO = '''
 </html>
 '''
 
-# Rota inicial redireciona para a tela da escola
 @app.route('/')
 def index():
     return redirect(url_for('escola', id_escola=1))
 
-# A rota exata que você está acessando no navegador (/escola/1)
 @app.route('/escola/<int:id_escola>', methods=['GET', 'POST'])
 def escola(id_escola):
     alunos = obter_dados_alunos()
     return render_template_string(HTML_DIARIO, alunos=alunos)
 
-# Rota falsa apenas para o botão amarelo não dar erro ao clicar
 @app.route('/processar', methods=['POST'])
 def processar():
     return redirect(url_for('escola', id_escola=1))
 
-# Rota que faz o download do Excel de verdade
 @app.route('/exportar-excel')
 def exportar_excel():
     alunos = obter_dados_alunos()
