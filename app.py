@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 from io import BytesIO
-from flask import Flask, render_template_string, send_file
+from flask import Flask, render_template_string, send_file, request, redirect, url_for
 
 app = Flask(__name__)
 
+# Dados que aparecem na sua tela do CIEP 205
 def obter_dados_alunos():
     return [
         {"nome": "ALLAN ARAÚJO MARQUES DA CONCEIÇÃO", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"},
@@ -13,7 +15,8 @@ def obter_dados_alunos():
         {"nome": "ANA CLARA SANTOS", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"}
     ]
 
-HTML_PAGINA = '''
+# O HTML exato da sua tela, agora com o botão de download integrado de forma nativa
+HTML_DIARIO = '''
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -23,6 +26,7 @@ HTML_PAGINA = '''
     <style>
         body { background-color: #f8f9fa; }
         .navbar-custom { background-color: #1a365d; color: white; }
+        .card-header-custom { background-color: #fff; border-left: 5px solid #ecc94b; }
         .table-thead { background-color: #f7fafc; }
         .text-p { color: #2f855a; font-weight: bold; }
     </style>
@@ -30,16 +34,35 @@ HTML_PAGINA = '''
 <body>
 
 <nav class="navbar navbar-custom p-3 mb-4">
-    <div class="container-fluid">
+    <div class="container-fluid d-flex justify-content-between">
         <span class="navbar-brand mb-0 h1 text-white">🍎 Diário Eletrônico de Classe</span>
+        <button class="btn btn-outline-light btn-sm">Sair do Sistema</button>
     </div>
 </nav>
 
-<div class="container bg-white p-4 rounded shadow-sm">
-    
-    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4 p-3" role="alert">
-        <h5 class="m-0 text-success fw-bold">📊 PLANILHA CONSOLIDADA PRONTA</h5>
-        <a href="/exportar-excel" class="btn btn-success btn-lg fw-bold px-4 shadow">
+<div class="container bg-white p-4 rounded shadow-sm mb-4">
+    <div class="alert alert-info alert-dismissible fade show p-2" role="alert">
+        Diário de classe updated!
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="padding: 0.75rem;"></button>
+    </div>
+
+    <p class="text-muted small"><a href="#" class="text-decoration-none">Início</a> / CIEP 205 FREI AGOSTINHO FÍNCIAS</p>
+
+    <div class="card card-header-custom p-3 mb-4 shadow-sm">
+        <h6 class="fw-bold mb-3">📥 Carga de Dados do Sistema Central (SEEDUC-RJ)</h6>
+        <form method="POST" action="/processar" class="row g-2">
+            <div class="col-md-9">
+                <input class="form-control" type="file" id="formFile">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-warning w-100 fw-bold">Processar Matrículas</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold m-0">📊 PLANILHA CONSOLIDADA (FREQUÊNCIA E RENDIMENTO)</h5>
+        <a href="/exportar-excel" class="btn btn-success fw-bold shadow-sm">
             📥 Baixar Planilha Excel
         </a>
     </div>
@@ -49,17 +72,17 @@ HTML_PAGINA = '''
             <thead class="table-thead">
                 <tr>
                     <th>Turma / Nome do Aluno</th>
-                    <th class="text-center">Faltas</th>
-                    <th class="text-center">Média</th>
-                    <th class="text-center">10/06</th>
-                    <th class="text-center">11/06</th>
+                    <th class="text-center" style="width: 100px;">Faltas</th>
+                    <th class="text-center" style="width: 100px;">Média</th>
+                    <th class="text-center" style="width: 80px;">10/06</th>
+                    <th class="text-center" style="width: 80px;">11/06</th>
                 </tr>
             </thead>
             <tbody>
                 {% for aluno in alunos %}
                 <tr>
                     <td>
-                        <span class="badge bg-secondary" style="font-size: 10px;">turma</span><br>
+                        <span class="badge bg-secondary mb-1" style="font-size: 10px;">turma</span><br>
                         <strong>{{ aluno.nome }}</strong>
                     </td>
                     <td class="text-center">{{ aluno.faltas }}</td>
@@ -77,11 +100,23 @@ HTML_PAGINA = '''
 </html>
 '''
 
+# Rota inicial redireciona para a tela da escola
 @app.route('/')
 def index():
-    alunos = obter_dados_alunos()
-    return render_template_string(HTML_PAGINA, alunos=alunos)
+    return redirect(url_for('escola', id_escola=1))
 
+# A rota exata que você está acessando no navegador (/escola/1)
+@app.route('/escola/<int:id_escola>', methods=['GET', 'POST'])
+def escola(id_escola):
+    alunos = obter_dados_alunos()
+    return render_template_string(HTML_DIARIO, alunos=alunos)
+
+# Rota falsa apenas para o botão amarelo não dar erro ao clicar
+@app.route('/processar', methods=['POST'])
+def processar():
+    return redirect(url_for('escola', id_escola=1))
+
+# Rota que faz o download do Excel de verdade
 @app.route('/exportar-excel')
 def exportar_excel():
     alunos = obter_dados_alunos()
@@ -109,4 +144,5 @@ def exportar_excel():
     )
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
