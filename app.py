@@ -1,69 +1,112 @@
-import customtkinter as ctk
-from tkinter import filedialog, messagebox
 import pandas as pd
-import os
+from io import BytesIO
+from flask import Flask, render_template_string, send_file
 
-# Configuração visual do aplicativo
-ctk.set_appearance_mode("System")
-ctk.set_default_color_theme("blue")
+app = Flask(__name__)
 
-class AppDiario(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        
-        self.title("Gerador do Conselho de Classe - CIEP 205")
-        self.geometry("500x300")
-        self.resizable(False, False)
-        
-        # Título na tela
-        self.label_titulo = ctk.CTkLabel(self, text="Painel Automação - Diário Docente", font=("Arial", 20, "bold"))
-        self.label_titulo.pack(pady=20)
-        
-        # Texto de instrução
-        self.label_instrucao = ctk.CTkLabel(self, text="Selecione o arquivo .csv baixado do sistema escolar:", font=("Arial", 14))
-        self.label_instrucao.pack(pady=10)
-        
-        # Botão principal
-        self.btn_gerar = ctk.CTkButton(self, text="Selecionar Diário e Gerar Excel", command=self.processar_diario, font=("Arial", 14, "bold"), height=45)
-        self.btn_gerar.pack(pady=20)
-        
-        # Rodapé
-        self.label_rodape = ctk.CTkLabel(self, text="Pronto para uso", font=("Arial", 11, "italic"), text_color="gray")
-        self.label_rodape.pack(side="bottom", pady=10)
+def obter_dados_alunos():
+    return [
+        {"nome": "ALLAN ARAÚJO MARQUES DA CONCEIÇÃO", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"},
+        {"nome": "ALLYCYA SANNY GONÇALVES MENESES", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"},
+        {"nome": "ANA BEATRIZ DIAS SILVA", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"},
+        {"nome": "ANA BEATRIZ SANTOS DA PENHA", "faltas": 0, "media": 0.0, "d10": "-", "d11": "-"},
+        {"nome": "ANA CLARA SANTOS", "faltas": 0, "media": 0.0, "d10": "P", "d11": "P"}
+    ]
 
-    def processar_diario(self):
-        # Abre a janela para você escolher o arquivo de onde ele estiver
-        arquivo_origem = filedialog.askopenfilename(
-            title="Escolha o arquivo do Diário de Classe",
-            filetypes=[("Arquivos CSV", "*.csv")]
-        )
-        
-        if not arquivo_origem:
-            return # Se o usuário cancelar, não faz nada
-            
-        try:
-            self.label_rodape.configure(text="Processando dados...", text_color="orange")
-            self.update()
-            
-            # Lê o arquivo que você escolheu com o separador correto
-            df_notas = pd.read_csv(arquivo_origem, sep=";", encoding="utf-8-sig")
-            
-            # Define onde vai salvar (na mesma pasta 'deder')
-            pasta_destino = os.path.dirname(os.path.abspath(__file__))
-            caminho_final = os.path.join(pasta_destino, "Consolidado_Bimestre_CIEP_205.xlsx")
-            
-            # Gera o Excel
-            df_notas.to_excel(caminho_final, index=False, sheet_name="Fechamento_Bimestre")
-            
-            self.label_rodape.configure(text="Arquivo gerado com sucesso!", text_color="green")
-            
-            # Abre uma caixinha de aviso de sucesso na tela
-            messagebox.showinfo("🏆 Sucesso!", f"O arquivo do Conselho foi gerado com sucesso na pasta:\n\n{caminho_final}")
-            
-        except Exception as e:
-            self.label_rodape.configure(text="Erro ao processar.", text_color="red")
-            messagebox.showerror("❌ Erro", f"Não foi possível processar o arquivo:\n{e}")
+HTML_PAGINA = '''
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Diário Eletrônico de Classe</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-custom { background-color: #1a365d; color: white; }
+        .table-thead { background-color: #f7fafc; }
+        .text-p { color: #2f855a; font-weight: bold; }
+    </style>
+</head>
+<body>
 
-if __name__ == "__main__":
-    app = AppDiario()
-    app.mainloop()
+<nav class="navbar navbar-custom p-3 mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1 text-white">🍎 Diário Eletrônico de Classe</span>
+    </div>
+</nav>
+
+<div class="container bg-white p-4 rounded shadow-sm">
+    
+    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4 p-3" role="alert">
+        <h5 class="m-0 text-success fw-bold">📊 PLANILHA CONSOLIDADA PRONTA</h5>
+        <a href="/exportar-excel" class="btn btn-success btn-lg fw-bold px-4 shadow">
+            📥 Baixar Planilha Excel
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="table-thead">
+                <tr>
+                    <th>Turma / Nome do Aluno</th>
+                    <th class="text-center">Faltas</th>
+                    <th class="text-center">Média</th>
+                    <th class="text-center">10/06</th>
+                    <th class="text-center">11/06</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for aluno in alunos %}
+                <tr>
+                    <td>
+                        <span class="badge bg-secondary" style="font-size: 10px;">turma</span><br>
+                        <strong>{{ aluno.nome }}</strong>
+                    </td>
+                    <td class="text-center">{{ aluno.faltas }}</td>
+                    <td class="text-center text-danger fw-bold">{{ aluno.media }}</td>
+                    <td class="text-center text-p">{{ aluno.d10 }}</td>
+                    <td class="text-center text-p">{{ aluno.d11 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>
+'''
+
+@app.route('/')
+def index():
+    alunos = obter_dados_alunos()
+    return render_template_string(HTML_PAGINA, alunos=alunos)
+
+@app.route('/exportar-excel')
+def exportar_excel():
+    alunos = obter_dados_alunos()
+    dados_planilha = []
+    for aluno in alunos:
+        dados_planilha.append({
+            "Nome do Aluno": aluno["nome"],
+            "Faltas": aluno["faltas"],
+            "Média": aluno["media"],
+            "10/06": aluno["d10"],
+            "11/06": aluno["d11"]
+        })
+    
+    df = pd.DataFrame(dados_planilha)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='CIEP_205')
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='Consolidado_Bimestre_CIEP_205.xlsx'
+    )
+
+if __name__ == '__main__':
+    app.run(debug=True)
